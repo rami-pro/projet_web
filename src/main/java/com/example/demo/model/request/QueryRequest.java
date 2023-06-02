@@ -1,4 +1,4 @@
-package com.example.demo.model;
+package com.example.demo.model.request;
 
 import java.util.*;
 import java.util.regex.*;
@@ -9,6 +9,16 @@ public class QueryRequest {
 
     public String getQuery() {
         return query;
+    }
+
+    public String getWhereClause() {
+        String[] parts = query.split("WHERE", 2); // Split on "WHERE" and keep only the second part
+        if (parts.length > 1) {
+            System.out.println(parts[1].trim());
+            return parts[1].trim();
+        } else {
+            return "";
+        }
     }
 
     public void setQuery(String query) {

@@ -17,55 +17,36 @@ public class UploadController {
     private TableService tableService;
 
     @PostMapping("/upload")
-    public void uploadCSV(@RequestParam("file") MultipartFile file, @RequestParam("tableName") String tableName) {
-        try {
-            InputStream inputStream = file.getInputStream();
-            BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
-
-            List<String> columnNames = new ArrayList<>();
-            List<String> columnTypes = new ArrayList<>();
-            List<Map<String, Object>> rows = new ArrayList<>();
-
-            // Read the first line of the CSV file, which contains the column names and types.
-            String headerLine = reader.readLine();
-            String[] headers = headerLine.split(",");
-            for (String header : headers) {
-                String[] parts = header.trim().split("\\s+");
-                columnNames.add(parts[0]);
-                columnTypes.add(parts[1]);
-            }
+    public void uploadCSV(@RequestParam("file") MultipartFile file,
+                          @RequestParam("tableName") String tableName,
+                          @RequestParam("skip") long skip) {
+        Table table = tableService.getTableByName(tableName);
+        if (table == null) {
+            throw new IllegalArgumentException("Table " + tableName + " doesn't exist");
+        }
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(file.getInputStream()))) {
+            List<List<Object>> rows = new ArrayList<>();
 
             // Read the rest of the CSV file, which contains the data.
             String line;
+            List<Column> columns = table.getColumns();
             while ((line = reader.readLine()) != null) {
+                if (--skip >= 0)
+                    continue;
+
                 String[] values = line.split(",");
-                Map<String, Object> row = new HashMap<>();
-                for (int i = 0; i < columnNames.size(); i++) {
-                    String columnName = columnNames.get(i);
-                    String columnType = columnTypes.get(i);
-                    Object value = getValue(values[i], columnType);
-                    row.put(columnName, value);
+                List<Object> row = new ArrayList<>();
+                for (int i = 0; i < columns.size(); i++) {
+                    Column column = columns.get(i);
+                    Object value = getValue(values[i], column.getType());
+                    row.add(value);
                 }
                 rows.add(row);
             }
-
-            Table table = new Table(tableName, createColumns(columnNames, columnTypes), rows);
-            tableService.addTable(table);
-
+            table.addRows(rows);
         } catch (IOException e) {
             throw new RuntimeException("Failed to upload CSV file", e);
         }
-    }
-
-    private List<Column> createColumns(List<String> columnNames, List<String> columnTypes) {
-        List<Column> columns = new ArrayList<>();
-        for (int i = 0; i < columnNames.size(); i++) {
-            String columnName = columnNames.get(i);
-            String columnType = columnTypes.get(i);
-            Column column = new Column(columnName, columnType);
-            columns.add(column);
-        }
-        return columns;
     }
 
     private Object getValue(String value, String columnType) {

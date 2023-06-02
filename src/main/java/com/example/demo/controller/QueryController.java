@@ -1,7 +1,8 @@
 package com.example.demo.controller;
 
-import com.example.demo.model.QueryRequest;
+import com.example.demo.model.request.QueryRequest;
 import com.example.demo.TableService;
+import com.example.demo.model.SQLInterpreter;
 import com.example.demo.model.Table;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -19,13 +20,11 @@ public class QueryController {
         Table table = tableService.getTableByName(tableName);
 
         if (table == null) {
-            //it would be better to send an exception
             return new ArrayList<>();
         }
 
         List<String> columns = queryRequest.getColumns(table.getColumnNames());
-        List<Map<String, Object>> result = tableService.executeQuery(table, columns);
 
-        return result;
+        return SQLInterpreter.executeQuery(table, columns, queryRequest.getWhereClause());
     }
 }
