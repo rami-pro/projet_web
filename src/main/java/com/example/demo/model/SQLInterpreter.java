@@ -9,7 +9,7 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 public class SQLInterpreter {
-    public static List<Map<String, Object>> executeQuery(Table table, List<String> columns, String whereClause, String verb) {
+    public static List<Map<String, Object>> executeQuery(Table table, List<String> columns, String whereClause, String verb, String query) {
         // Tokenize the WHERE clause
         List<String> tokens = tokenize(whereClause);
 
@@ -18,7 +18,7 @@ public class SQLInterpreter {
         List<String> postfixTokens = convertToRPN(tokens);
 
         // Evaluate RPN expression
-        List<Map<String, Object>> result = evaluateRPN(table, postfixTokens, verb);
+        List<Map<String, Object>> result = evaluateRPN(table, postfixTokens, verb, query);
 
 
         return projectColumns(result, columns);
@@ -108,12 +108,53 @@ public class SQLInterpreter {
         return projectedRows;
     }
 
-    public static List<Map<String, Object>> evaluateRPN(Table table, List<String> postfixTokens, String action) {
+    public static List<String> getColumnsAndValues(String updateStatement) {
+        List<String> columnsAndValues = new ArrayList<>();
+
+        // Regular expression pattern to match column-value pairs
+        Pattern pattern = Pattern.compile("SET\\s+(.+?)\\s+WHERE");
+        Matcher matcher = pattern.matcher(updateStatement);
+
+        if (matcher.find()) {
+            String columnValuePairs = matcher.group(1);
+
+            // Split the column-value pairs by commas
+            String[] pairs = columnValuePairs.split(",");
+
+            // Process each pair
+            for (String pair : pairs) {
+                // Remove leading/trailing whitespace
+                pair = pair.trim();
+
+                // Split the pair into column and value
+                String[] parts = pair.split("=");
+
+                // Remove leading/trailing whitespace from column and value
+                String column = parts[0].trim();
+                String value = parts[1].trim();
+
+                // Add the column and value to the list
+                columnsAndValues.add(column);
+                columnsAndValues.add("=");
+                columnsAndValues.add(value);
+            }
+        } else {
+            throw new IllegalArgumentException("Invalid SQL update statement: " + updateStatement);
+        }
+
+        return columnsAndValues;
+    }
+
+
+
+    public static List<Map<String, Object>> evaluateRPN(Table table, List<String> postfixTokens, String action, String query) {
         switch (action) {
             case "SELECT":
                 return select(table, postfixTokens);
             case "UPDATE":
-                //return update(table, columnValuesToUpdate, postfixTokens);
+                //UPDATE Table SET column1 = value1, column2 = value2 WHERE id = 1 ==> [column1, value1, column2, =, value2]
+                List<String> columnValuesToUpdate = getColumnsAndValues(query);
+                return update(table, columnValuesToUpdate, postfixTokens);
             case "DELETE":
                 return delete(table, postfixTokens);
             default:
