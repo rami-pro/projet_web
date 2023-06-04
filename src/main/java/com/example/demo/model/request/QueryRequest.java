@@ -21,6 +21,15 @@ public class QueryRequest {
         }
     }
 
+    public String getVerb() {
+        String[] parts = query.split(" "); // Split on "WHERE" and keep only the second part
+        if (parts.length > 1) {
+            return parts[0].trim();
+        } else {
+            return "";
+        }
+    }
+
     public void setQuery(String query) {
         this.query = query;
     }
@@ -48,7 +57,8 @@ public class QueryRequest {
                     .map(String::trim)
                     .collect(Collectors.toList());
         } else {
-            throw new RuntimeException("Invalid SELECT query: " + query);
+            return null;
         }
     }
+
 }

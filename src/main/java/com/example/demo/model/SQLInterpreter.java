@@ -5,10 +5,11 @@ import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 public class SQLInterpreter {
-    public static List<Map<String, Object>> executeQuery(Table table, List<String> columns, String whereClause) {
+    public static List<Map<String, Object>> executeQuery(Table table, List<String> columns, String whereClause, String verb) {
         // Tokenize the WHERE clause
         List<String> tokens = tokenize(whereClause);
 
@@ -17,7 +18,7 @@ public class SQLInterpreter {
         List<String> postfixTokens = convertToRPN(tokens);
 
         // Evaluate RPN expression
-        List<Map<String, Object>> result = evaluateRPN(table, postfixTokens);
+        List<Map<String, Object>> result = evaluateRPN(table, postfixTokens, verb);
 
 
         return projectColumns(result, columns);
@@ -88,6 +89,10 @@ public class SQLInterpreter {
     public static List<Map<String, Object>> projectColumns(List<Map<String, Object>> rows, List<String> columns) {
         List<Map<String, Object>> projectedRows = new ArrayList<>();
 
+        if(columns == null) {
+            return rows;
+        }
+
         for (Map<String, Object> row : rows) {
             Map<String, Object> projectedRow = new HashMap<>();
 
@@ -103,7 +108,31 @@ public class SQLInterpreter {
         return projectedRows;
     }
 
-    public static List<Map<String, Object>> evaluateRPN(Table table, List<String> postfixTokens) {
+    public static List<Map<String, Object>> evaluateRPN(Table table, List<String> postfixTokens, String action) {
+        switch (action) {
+            case "SELECT":
+                return select(table, postfixTokens);
+            case "UPDATE":
+                //return update(table, columnValuesToUpdate, postfixTokens);
+            case "DELETE":
+                return delete(table, postfixTokens);
+            default:
+                throw new IllegalArgumentException("Invalid action: " + action);
+        }
+    }
+
+
+    public static List<Integer> getIndexes(Table table, List<Map<String, Object>> results) {
+        List<List<Object>> rows = table.getRows();
+
+        return IntStream.range(0, rows.size())
+                .filter(i -> results.stream().anyMatch(result -> table.compareRowWithMap(rows.get(i), result)))
+                .boxed()
+                .collect(Collectors.toList());
+    }
+
+
+    public static List<Map<String, Object>> select(Table table, List<String> postfixTokens) {
         Stack<List<Map<String, Object>>> stack = new Stack<>();
         Stack<String> operands = new Stack<>();
 
@@ -131,6 +160,66 @@ public class SQLInterpreter {
 
         return stack.peek();
     }
+
+    public static List<Map<String, Object>> update(Table table, List<String> postfixValuesToUpdate, List<String> postfixFilter) {
+        List<Map<String, Object>> rowsToUpdate = select(table, postfixFilter);
+        List<Integer> rowsIndex = getIndexes(table, rowsToUpdate);
+
+        for (int i = 0; i < rowsToUpdate.size(); i++) {
+            for (int j = 0; j < postfixValuesToUpdate.size(); j += 3) {
+                String columnName = postfixValuesToUpdate.get(j);
+                String operator = postfixValuesToUpdate.get(j + 1);
+                String value = postfixValuesToUpdate.get(j + 2);
+
+                // Find the column in the table
+                Column column = table.getColumns(List.of(columnName)).get(0);
+
+                // Parse the value according to the column type
+                Object parsedValue = table.parseValue(value, column.getType());
+
+                // Update the value in the row
+                rowsToUpdate.get(i).put(columnName, parsedValue);
+            }
+            table.updateRowWithMap(rowsIndex.get(i), rowsToUpdate.get(i));
+        }
+
+
+        // Apply the update values to the selected rows
+        for (Map<String, Object> row : rowsToUpdate) {
+            for (int i = 0; i < postfixValuesToUpdate.size(); i += 3) {
+                String columnName = postfixValuesToUpdate.get(i);
+                String operator = postfixValuesToUpdate.get(i + 1);
+                String value = postfixValuesToUpdate.get(i + 2);
+
+                // Find the column in the table
+                Column column = table.getColumns(List.of(columnName)).get(0);
+
+                // Parse the value according to the column type
+                Object parsedValue = table.parseValue(value, column.getType());
+
+                // Update the value in the row
+                row.put(columnName, parsedValue);
+            }
+        }
+
+        return table.listOfMap();
+    }
+
+    public static List<Map<String, Object>> delete(Table table, List<String> postfixTokens) {
+        // Evaluate the postfix tokens to get the filtered results
+        List<Map<String, Object>> results = select(table, postfixTokens);
+
+        // Get the indexes of the rows to delete
+        List<Integer> indexes = getIndexes(table, results);
+
+        // Delete the rows
+        table.deleteRows(indexes);
+
+        // Return the updated rows
+        return results;
+    }
+
+
 
     public static List<Map<String, Object>> applyOperator(Table table, String leftOperand, String operator, String rightOperand) {
         List<Map<String, Object>> result = new ArrayList<>();

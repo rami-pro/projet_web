@@ -25,6 +25,6 @@ public class QueryController {
 
         List<String> columns = queryRequest.getColumns(table.getColumnNames());
 
-        return SQLInterpreter.executeQuery(table, columns, queryRequest.getWhereClause());
+        return SQLInterpreter.executeQuery(table, columns, queryRequest.getWhereClause(), queryRequest.getVerb());
     }
 }

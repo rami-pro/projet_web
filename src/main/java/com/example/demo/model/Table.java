@@ -123,28 +123,64 @@ public class Table {
         }
     }
 
+    public void deleteRows(List<Integer> indexes) {
+        // Sort the indexes in descending order to ensure correct row deletion
+        Collections.sort(indexes, Collections.reverseOrder());
 
-    public Predicate<List<Object>> buildPredicateForCondition(String condition) {
-        String[] tokens = condition.split("\\s+");
-        String columnName = tokens[0];
-        Column column = getColumns(List.of(columnName)).get(0);
-        String operator = tokens[1];
-        Object value = parseValue(tokens[2], column.getType());
-
-        switch (operator) {
-            case "=":
-                return row -> compareValues(row.get(column.getIndex()), value, "=");
-            case ">":
-                return row -> compareValues(row.get(column.getIndex()), value, ">");
-            case ">=":
-                return row -> compareValues(row.get(column.getIndex()), value,">=");
-            case "<":
-                return row -> compareValues(row.get(column.getIndex()), value,"<");
-            case "<=":
-                return row -> compareValues(row.get(column.getIndex()), value,"<=");
-            default:
-                throw new IllegalArgumentException("Invalid operator: " + operator);
+        // Remove the rows at the specified indexes
+        for (int index : indexes) {
+            if (index >= 0 && index < rows.size()) {
+                rows.remove(index);
+            }
         }
     }
+
+
+    public Map<String, Object> convertRowToMap(Table table, List<Object> row) {
+        List<Column> columns = table.getColumns();
+        List<String> columnNames = table.getColumnNames();
+
+        Map<String, Object> map = new HashMap<>();
+
+        for (Column column : columns) {
+            int columnIndex = column.getIndex();
+            String columnName = columnNames.get(columnIndex);
+            Object value = row.get(columnIndex);
+            map.put(columnName, value);
+        }
+
+        return map;
+    }
+
+    public boolean compareRowWithMap(List<Object> row, Map<String, Object> map) {
+        for (Column column : columns) {
+            String columnName = column.getName();
+            Object rowValue = row.get(column.getIndex());
+            Object mapValue = map.get(columnName);
+            String columnType = column.getType();
+
+            Object parsedRowValue = parseValue(rowValue.toString(), columnType);
+            Object parsedMapValue = parseValue(mapValue.toString(), columnType);
+
+            if (!compareValues(parsedRowValue, parsedMapValue, "=")) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public void updateRowWithMap(int rowIndex, Map<String, Object> map) {
+        List<Object> row = rows.get(rowIndex);
+
+        for (Column column : columns) {
+            String columnName = column.getName();
+            Object value = map.get(columnName);
+
+            // Update the value in the row
+            row.set(column.getIndex(), value);
+        }
+    }
+
 
 }
