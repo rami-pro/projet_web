@@ -27,7 +27,7 @@ public class UploadController {
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(file.getInputStream()))) {
             List<List<Object>> rows = new ArrayList<>();
 
-            // Read the rest of the CSV file, which contains the data.
+
             String line;
             List<Column> columns = table.getColumns();
             while ((line = reader.readLine()) != null) {

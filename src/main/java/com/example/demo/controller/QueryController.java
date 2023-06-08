@@ -43,7 +43,6 @@ public class QueryController {
 
 
         List<String> columns = selectRequestBody.getColumns();
-        //return SQLInterpreter.executeQuery(table, columns, queryRequest.getWhereClause(), queryRequest.getVerb(), queryRequest.getQuery());
         return SQLInterpreter.executeSelectQuery(table, columns, selectRequestBody.getFilter(), selectRequestBody.getLimit(), selectRequestBody.getSkip());
     }
 

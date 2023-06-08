@@ -10,14 +10,14 @@ import java.util.stream.Stream;
 
 public class SQLInterpreter {
     public static List<Map<String, Object>> executeQuery(Table table, List<String> columns, String whereClause, String verb, String query) {
-        // Tokenize the WHERE clause
+
         List<String> tokens = tokenize(whereClause);
 
         System.out.println(tokens);
-        // Convert to RPN
+
         List<String> postfixTokens = convertToRPN(tokens);
 
-        // Evaluate RPN expression
+
         List<Map<String, Object>> result = evaluateRPN(table, postfixTokens, verb, query);
 
 
@@ -26,11 +26,11 @@ public class SQLInterpreter {
 
     public static List<Map<String, Object>> executeSelectQuery(Table table, List<String> columns, String whereClause, Integer limit, Integer skip) {
         // Tokenize the WHERE clause
-        List<String> tokens = tokenize(whereClause);
+        List<String> tokens = tokenize(whereClause); //Diviser une chaine de caract en multitude de chaines de caract
 
         System.out.println(tokens);
         // Convert to RPN
-        List<String> postfixTokens = convertToRPN(tokens);
+        List<String> postfixTokens = convertToRPN(tokens); //convertit une clause WHERE à la notation polonaise
 
         // Evaluate RPN expression
         List<Map<String, Object>> result = select(table, postfixTokens, limit, skip);
@@ -282,8 +282,8 @@ public class SQLInterpreter {
         System.out.println("skip out");
         System.out.println(stack.peek());
         System.out.println(stack.peek().size());
-        if (skip != null && skip > 0 && stack.peek().size() > skip) {
-            System.out.println("skip in");
+        if (skip != null && skip > 0 && stack.peek().size() > skip) { //voir le sommet de la pile, si skip non nul et sommet pile sup a skip
+            System.out.println("skip in"); //
             System.out.println(skip == 1);
             List<Map<String, Object>> skippedResults = stack.pop();
             skippedResults = skippedResults.subList(1, skippedResults.size());
