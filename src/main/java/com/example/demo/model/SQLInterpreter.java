@@ -24,6 +24,65 @@ public class SQLInterpreter {
         return projectColumns(result, columns);
     }
 
+    public static List<Map<String, Object>> executeSelectQuery(Table table, List<String> columns, String whereClause, Integer limit, Integer skip) {
+        // Tokenize the WHERE clause
+        List<String> tokens = tokenize(whereClause);
+
+        System.out.println(tokens);
+        // Convert to RPN
+        List<String> postfixTokens = convertToRPN(tokens);
+
+        // Evaluate RPN expression
+        List<Map<String, Object>> result = select(table, postfixTokens, limit, skip);
+
+
+        return projectColumns(result, columns);
+    }
+
+    public static List<Map<String, Object>> executeUpdateQuery(Table table, String whereClause, String updateStatement) {
+        // Tokenize the WHERE clause
+        List<String> tokens = tokenize(whereClause);
+        System.out.println(tokens);
+
+        // Convert to RPN
+        List<String> postfixTokens = convertToRPN(tokens);
+
+        // Evaluate RPN expression
+        List<String> columnValuesToUpdate = extractUpdateElements(updateStatement);
+        System.out.println(columnValuesToUpdate);
+        return update(table, columnValuesToUpdate, postfixTokens);
+    }
+
+    public static List<Map<String, Object>> executeDeleteQuery(Table table, String whereClause) {
+        // Tokenize the WHERE clause
+        List<String> tokens = tokenize(whereClause);
+        System.out.println(tokens);
+
+        // Convert to RPN
+        List<String> postfixTokens = convertToRPN(tokens);
+
+        // Evaluate RPN expression
+        return delete(table, postfixTokens);
+    }
+
+    public static List<String> extractUpdateElements(String updateString) {
+        // Remove "SET" from the updateString
+        String trimmedString = updateString.trim().substring(4);
+
+        List<String> elements = new ArrayList<>();
+
+        String[] parts = trimmedString.split(",");
+        for (String part : parts) {
+            String[] tokens = part.trim().split(" ");
+            for (String token : tokens) {
+                elements.add(token.trim());
+            }
+        }
+
+        return elements;
+    }
+
+
     private static List<String> tokenize(String whereClause) {
         List<String> tokens = new ArrayList<>();
 
@@ -150,7 +209,7 @@ public class SQLInterpreter {
     public static List<Map<String, Object>> evaluateRPN(Table table, List<String> postfixTokens, String action, String query) {
         switch (action) {
             case "SELECT":
-                return select(table, postfixTokens);
+                return select(table, postfixTokens, null, null);
             case "UPDATE":
                 //UPDATE Table SET column1 = value1, column2 = value2 WHERE id = 1 ==> [column1, value1, column2, =, value2]
                 List<String> columnValuesToUpdate = getColumnsAndValues(query);
@@ -173,12 +232,33 @@ public class SQLInterpreter {
     }
 
 
-    public static List<Map<String, Object>> select(Table table, List<String> postfixTokens) {
+    public static List<Map<String, Object>> select(Table table, List<String> postfixTokens, Integer limit, Integer skip) {
         Stack<List<Map<String, Object>>> stack = new Stack<>();
         Stack<String> operands = new Stack<>();
 
+        System.out.println(limit);
+        System.out.println(skip);
+
         if(postfixTokens.isEmpty()) {
-            return table.listOfMap();
+            stack.push(table.listOfMap());
+            if (skip != null && skip > 0 && stack.peek().size() > skip) {
+                System.out.println("skip in");
+                System.out.println(skip == 1);
+                List<Map<String, Object>> skippedResults = stack.pop();
+                skippedResults = skippedResults.subList(skip, skippedResults.size());
+                System.out.println(skippedResults);
+                stack.push(skippedResults);
+            }
+
+            // Apply limit to the results if provided
+            if (limit != null && limit > 0 && stack.peek().size() > limit) {
+                System.out.println(limit == 1);
+                List<Map<String, Object>> limitedResults = stack.pop();
+                limitedResults = limitedResults.subList(0, limit);
+                stack.push(limitedResults);
+            }
+
+            return stack.peek();
         }
 
         for (String token : postfixTokens) {
@@ -199,11 +279,32 @@ public class SQLInterpreter {
             }
         }
 
+        System.out.println("skip out");
+        System.out.println(stack.peek());
+        System.out.println(stack.peek().size());
+        if (skip != null && skip > 0 && stack.peek().size() > skip) {
+            System.out.println("skip in");
+            System.out.println(skip == 1);
+            List<Map<String, Object>> skippedResults = stack.pop();
+            skippedResults = skippedResults.subList(1, skippedResults.size());
+            System.out.println(skippedResults);
+            stack.push(skippedResults);
+        }
+
+        // Apply limit to the results if provided
+        if (limit != null && limit > 0 && stack.peek().size() > limit) {
+            System.out.println(limit == 1);
+            List<Map<String, Object>> limitedResults = stack.pop();
+            limitedResults = limitedResults.subList(0, limit);
+            stack.push(limitedResults);
+        }
+
         return stack.peek();
     }
 
+
     public static List<Map<String, Object>> update(Table table, List<String> postfixValuesToUpdate, List<String> postfixFilter) {
-        List<Map<String, Object>> rowsToUpdate = select(table, postfixFilter);
+        List<Map<String, Object>> rowsToUpdate = select(table, postfixFilter, null, null);
         List<Integer> rowsIndex = getIndexes(table, rowsToUpdate);
 
         for (int i = 0; i < rowsToUpdate.size(); i++) {
@@ -248,7 +349,7 @@ public class SQLInterpreter {
 
     public static List<Map<String, Object>> delete(Table table, List<String> postfixTokens) {
         // Evaluate the postfix tokens to get the filtered results
-        List<Map<String, Object>> results = select(table, postfixTokens);
+        List<Map<String, Object>> results = select(table, postfixTokens, null, null);
 
         // Get the indexes of the rows to delete
         List<Integer> indexes = getIndexes(table, results);

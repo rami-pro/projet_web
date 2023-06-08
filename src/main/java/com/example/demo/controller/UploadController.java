@@ -57,7 +57,7 @@ public class UploadController {
         } else if (columnType.equalsIgnoreCase("boolean")) {
             return Boolean.parseBoolean(value);
         } else {
-            return value;
+            return null;
         }
     }
 }

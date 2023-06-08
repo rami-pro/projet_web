@@ -33,7 +33,7 @@ public class SQLInterpreterTest {
         List<String> postfixTokens = Arrays.asList("name", "Alice", "=", "age", "30", "=", "OR");
 
         // Evaluate the RPN expression
-        List<Map<String, Object>> result = SQLInterpreter.select(table, postfixTokens);
+        List<Map<String, Object>> result = SQLInterpreter.select(table, postfixTokens, null, 1);
 
         // Verify the result
         assertEquals(1, result.size());
@@ -42,6 +42,33 @@ public class SQLInterpreterTest {
         assertEquals("Alice", row.get("name"));
         assertEquals(30, row.get("age"));
         assertEquals(60000.0, row.get("salary"));
+
+    }
+
+    @Test
+    public void testSelect2() {
+        // Create a sample table with columns
+        List<Column> columns = new ArrayList<>();
+        columns.add(new Column("name", "string"));
+        columns.add(new Column("age", "int"));
+        columns.add(new Column("salary", "double"));
+
+        Table table = new Table("employees", columns);
+
+        // Add some sample rows to the table
+        List<List<Object>> rows = new ArrayList<>();
+        rows.add(Arrays.asList("John", 25, 50000.0));
+        rows.add(Arrays.asList("Alice", 30, 60000.0));
+        rows.add(Arrays.asList("Bob", 35, 70000.0));
+
+        table.addRows(rows);
+
+        List<Map<String, Object>> result2 = SQLInterpreter.select(table, Arrays.asList("name", "Alice", "=", "age", "99", "<", "OR"), 2, null);
+
+        // Verify the result
+        System.out.println(result2);
+        assertEquals(2, result2.size());
+
     }
 
     @Test
